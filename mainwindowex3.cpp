@@ -1,9 +1,23 @@
 #include "mainwindowex3.h"
 #include "ui_mainwindowex3.h"
+#include <unistd.h>
+#include <sys/wait.h>
+#include <fcntl.h>
 
 MainWindowEx3::MainWindowEx3(QWidget *parent):QMainWindow(parent),ui(new Ui::MainWindowEx3)
 {
     ui->setupUi(this);
+
+    // ==========================================
+    // ÉTAPE 5 : REDIRECTION DE STDERR
+    // ==========================================
+    int fd = open("Trace.log", O_WRONLY | O_CREAT | O_APPEND, 0644);
+    if (fd != -1)
+    {
+        dup2(fd, 2);
+        
+        ::close(fd);
+    }
 }
 
 MainWindowEx3::~MainWindowEx3()
@@ -137,18 +151,111 @@ const char* MainWindowEx3::getGroupe3()
 void MainWindowEx3::on_pushButtonLancerRecherche_clicked()
 {
   fprintf(stderr,"Clic sur le bouton Lancer Recherche\n");
-  // TO DO
-  int idFils1,idFils2,idFils3;
+  
+  pid_t idFils1 = 0, idFils2 = 0, idFils3 = 0;
+  int nbFilsLances = 0;
+
+  // --- RECHERCHE 1 ---
+  if (recherche1Selectionnee())
+  {
+    const char* groupe = getGroupe1();
+    if (groupe != NULL)
+    {
+      idFils1 = fork();
+      if (idFils1 == 0)
+      {
+        execl("./Lecture", "Lecture", groupe, NULL);
+        perror("Erreur execl 1");
+        exit(1);
+      }
+      else if (idFils1 > 0)
+      {
+        nbFilsLances++;
+      }
+    }
+  }
+
+  // --- RECHERCHE 2 ---
+  if (recherche2Selectionnee())
+  {
+    const char* groupe = getGroupe2();
+    if (groupe != NULL)
+    {
+      idFils2 = fork();
+      if (idFils2 == 0)
+      {
+        execl("./Lecture", "Lecture", groupe, NULL);
+        perror("Erreur execl 2");
+        exit(1);
+      }
+      else if (idFils2 > 0)
+      {
+        nbFilsLances++;
+      }
+    }
+  }
+
+  // --- RECHERCHE 3 ---
+  if (recherche3Selectionnee())
+  {
+    const char* groupe = getGroupe3();
+    if (groupe != NULL)
+    {
+      idFils3 = fork();
+      if (idFils3 == 0)
+      {
+        execl("./Lecture", "Lecture", groupe, NULL);
+        perror("Erreur execl 3");
+        exit(1);
+      }
+      else if (idFils3 > 0)
+      {
+        nbFilsLances++;
+      }
+    }
+  }
+
+  // --- ATTENTE DES FILS ET AFFICHAGE ---
+  int status;
+  pid_t idTermine;
+
+  for (int i = 0; i < nbFilsLances; i++)
+  {
+    idTermine = wait(&status);
+
+    if (WIFEXITED(status))
+    {
+      int nbEtudiants = WEXITSTATUS(status);
+
+      if (idTermine == idFils1) 
+      {
+        setResultat1(nbEtudiants);
+      }
+      else if (idTermine == idFils2) 
+      {
+        setResultat2(nbEtudiants);
+      }
+      else if (idTermine == idFils3) 
+      {
+        setResultat3(nbEtudiants);
+      }
+    }
+  }
 }
 
 void MainWindowEx3::on_pushButtonVider_clicked()
 {
   fprintf(stderr,"Clic sur le bouton Vider\n");
-  // TO DO
+  setGroupe1("");
+  setGroupe2("");
+  setGroupe3("");
+  ui->lineEditResultat1->clear();
+  ui->lineEditResultat2->clear();
+  ui->lineEditResultat3->clear();
 }
 
 void MainWindowEx3::on_pushButtonQuitter_clicked()
 {
   fprintf(stderr,"Clic sur le bouton Quitter\n");
-  // TO DO
+  exit(0);
 }
